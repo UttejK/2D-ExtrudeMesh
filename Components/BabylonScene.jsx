@@ -1,29 +1,29 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArcRotateCamera,
   Color3,
-  Color4,
   Engine,
   HemisphericLight,
-  Mesh,
   MeshBuilder,
   PolygonMeshBuilder,
   Scene,
   StandardMaterial,
   Vector2,
   Vector3,
-  VertexData,
 } from "@babylonjs/core";
 import * as earcut from "earcut";
+import { AdvancedDynamicTexture, Control, Button } from "@babylonjs/gui";
+import CreateButton from "./CreateButton";
 
 const BabylonScene = () => {
   const sceneRef = useRef(null);
-
+  let drawActive = false;
   useEffect(() => {
     // Create the Babylon.js scene
     const engine = new Engine(sceneRef.current, true);
     const scene = new Scene(engine);
+    scene.clearColor = Color3.Black();
     const camera = new ArcRotateCamera(
       "camera",
       0,
@@ -38,12 +38,12 @@ const BabylonScene = () => {
     light.intensity = 0.9;
     const ground = MeshBuilder.CreateGround(
       "ground",
-      { width: 6, height: 6 },
+      { width: 10, height: 10 },
       scene
     );
     const groundmat = new StandardMaterial("groundMat", scene);
     groundmat.diffuseColor = new Color3(0.1, 0.1, 0.1);
-    groundmat.alpha = 0.1;
+    // groundmat.alpha = 0.4;
     ground.material = groundmat;
 
     const mat = new StandardMaterial("mat", scene);
@@ -51,7 +51,7 @@ const BabylonScene = () => {
     mat.backFaceCulling = false;
     mat.twoSidedLighting = true;
 
-    const bufferMeshes = [];
+    let bufferMeshes = [];
     const positions = [];
 
     scene.onPointerDown = (evt) => {
@@ -60,7 +60,7 @@ const BabylonScene = () => {
       // the evt.button will be zero for left mouse button, and 2 for right mouse button
       // console.log(evt.button);
 
-      if (hit.faceId != -1) {
+      if (hit.faceId != -1 && drawActive) {
         if (evt.button == 0) {
           const Mesh = MeshBuilder.CreateSphere(
             "PlaceHolder",
@@ -76,7 +76,6 @@ const BabylonScene = () => {
           }
         }
         if (evt.button == 2) {
-          console.log(positions);
           const poly_tri = new PolygonMeshBuilder(
             "polygon",
             positions,
@@ -93,6 +92,16 @@ const BabylonScene = () => {
       }
     };
 
+    // Creating the GUI
+    const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("myUI");
+
+    const draw = CreateButton("Draw", [0, 0], advancedTexture);
+    draw.onPointerDownObservable.add(() => {
+      if (drawActive) drawActive = false;
+      else drawActive = true;
+    });
+
+    const extrude = CreateButton("Extrude", [1, 0], advancedTexture);
     // Rendering loop
     engine.runRenderLoop(() => {
       scene.render();
@@ -111,10 +120,12 @@ const BabylonScene = () => {
   }, []);
 
   return (
-    <canvas
-      ref={sceneRef}
-      style={{ width: "100vw", height: "100vh", overflow: "hidden" }}
-    />
+    <>
+      <canvas
+        ref={sceneRef}
+        style={{ width: "100vw", height: "100vh", overflow: "hidden" }}
+      />
+    </>
   );
 };
 
