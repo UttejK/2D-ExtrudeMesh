@@ -4,12 +4,14 @@ import {
   ArcRotateCamera,
   Color3,
   Engine,
+  GizmoManager,
   HemisphericLight,
   MeshBuilder,
   PointerDragBehavior,
   PolygonMeshBuilder,
   Scene,
   StandardMaterial,
+  TransformNode,
   Vector2,
   Vector3,
 } from "@babylonjs/core";
@@ -20,7 +22,7 @@ import CreateButton from "./CreateButton";
 const BabylonScene = () => {
   const sceneRef = useRef(null);
   let drawActive = false;
-  let extrudeActive = false;
+  let moveVertsActive = false;
   let moveActive = false;
   const pointerDrag = new PointerDragBehavior({
     dragPlaneNormal: Vector3.Up(),
@@ -104,10 +106,6 @@ const BabylonScene = () => {
         if (moveActive) hit.pickedMesh.addBehavior(pointerDrag);
         else hit.pickedMesh.removeBehavior(pointerDrag);
       }
-
-      if (hit.faceId != -1 && hit.pickedMesh != ground && evt.button == 0) {
-        // console.log(polygon.geometry._positions);
-      }
     };
 
     // Creating the GUI
@@ -126,12 +124,12 @@ const BabylonScene = () => {
       positions = [];
     });
 
-    const extrude = CreateButton("Extrude", advancedTexture);
-    extrude.top = "-45%";
-    extrude.left = "35%";
-    extrude.onPointerDownObservable.add(() => {
-      if (extrudeActive) extrudeActive = false;
-      else extrudeActive = true;
+    const moveVerts = CreateButton("Move Vertices", advancedTexture);
+    moveVerts.top = "-45%";
+    moveVerts.left = "35%";
+    moveVerts.onPointerDownObservable.add(() => {
+      if (moveVertsActive) moveVertsActive = false;
+      else moveVertsActive = true;
     });
 
     const move = CreateButton("Move", advancedTexture);
