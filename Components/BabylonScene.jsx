@@ -6,6 +6,7 @@ import {
   Engine,
   HemisphericLight,
   MeshBuilder,
+  PointerDragBehavior,
   PolygonMeshBuilder,
   Scene,
   StandardMaterial,
@@ -19,6 +20,11 @@ import CreateButton from "./CreateButton";
 const BabylonScene = () => {
   const sceneRef = useRef(null);
   let drawActive = false;
+  let extrudeActive = false;
+  let moveActive = false;
+  const pointerDrag = new PointerDragBehavior({
+    dragPlaneNormal: Vector3.Up(),
+  });
   useEffect(() => {
     // Create the Babylon.js scene
     const engine = new Engine(sceneRef.current, true);
@@ -48,11 +54,10 @@ const BabylonScene = () => {
 
     const mat = new StandardMaterial("mat", scene);
     mat.emissiveColor = Color3.Green();
-    mat.backFaceCulling = false;
-    mat.twoSidedLighting = true;
 
     let bufferMeshes = [];
-    const positions = [];
+    let positions = [];
+    let polygon = null;
 
     scene.onPointerDown = (evt) => {
       // pick mesh at the pointer position
@@ -60,8 +65,8 @@ const BabylonScene = () => {
       // the evt.button will be zero for left mouse button, and 2 for right mouse button
       // console.log(evt.button);
 
-      if (hit.faceId != -1 && drawActive) {
-        if (evt.button == 0) {
+      if (hit.faceId !== -1 && drawActive) {
+        if (evt.button === 0) {
           const Mesh = MeshBuilder.CreateSphere(
             "PlaceHolder",
             { diameter: 0.15 },
@@ -75,33 +80,67 @@ const BabylonScene = () => {
             console.error(error);
           }
         }
-        if (evt.button == 2) {
+        if (evt.button === 2) {
           const poly_tri = new PolygonMeshBuilder(
             "polygon",
             positions,
             scene,
             earcut
           );
-          const polygon = poly_tri.build();
+          polygon = poly_tri.build();
+          polygon.position.y = 0.01;
           polygon.material = mat;
           const len = bufferMeshes.length;
           for (let i = 0; i < len; i++) {
-            bufferMeshes[i].dispose();
+            bufferMeshes[i]?.dispose();
+            if (i === len - 1) {
+              bufferMeshes = [];
+            }
           }
+          drawActive = false;
         }
+      }
+      if (hit.faceId != -1 && hit.pickedMesh != ground) {
+        if (moveActive) hit.pickedMesh.addBehavior(pointerDrag);
+        else hit.pickedMesh.removeBehavior(pointerDrag);
+      }
+
+      if (hit.faceId != -1 && hit.pickedMesh != ground && evt.button == 0) {
+        // console.log(polygon.geometry._positions);
       }
     };
 
     // Creating the GUI
-    const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI("myUI");
+    const advancedTexture = AdvancedDynamicTexture.CreateFullscreenUI(
+      "myUI",
+      true,
+      scene
+    );
 
-    const draw = CreateButton("Draw", [0, 0], advancedTexture);
+    const draw = CreateButton("Draw", advancedTexture);
+    draw.top = "-45%";
+    draw.left = "-35%";
     draw.onPointerDownObservable.add(() => {
       if (drawActive) drawActive = false;
       else drawActive = true;
+      positions = [];
     });
 
-    const extrude = CreateButton("Extrude", [1, 0], advancedTexture);
+    const extrude = CreateButton("Extrude", advancedTexture);
+    extrude.top = "-45%";
+    extrude.left = "35%";
+    extrude.onPointerDownObservable.add(() => {
+      if (extrudeActive) extrudeActive = false;
+      else extrudeActive = true;
+    });
+
+    const move = CreateButton("Move", advancedTexture);
+    move.top = "-45%";
+    move.onPointerDownObservable.add(() => {
+      if (moveActive) moveActive = false;
+      else moveActive = true;
+    });
+
     // Rendering loop
     engine.runRenderLoop(() => {
       scene.render();
