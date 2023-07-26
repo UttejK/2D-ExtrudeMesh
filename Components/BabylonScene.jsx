@@ -4,14 +4,13 @@ import {
   ArcRotateCamera,
   Color3,
   Engine,
-  GizmoManager,
+  ExtrudePolygon,
   HemisphericLight,
   MeshBuilder,
   PointerDragBehavior,
   PolygonMeshBuilder,
   Scene,
   StandardMaterial,
-  TransformNode,
   Vector2,
   Vector3,
 } from "@babylonjs/core";
@@ -25,6 +24,7 @@ const BabylonScene = () => {
   let drawActive = false;
   let moveVertsActive = false;
   let moveActive = false;
+  let extrudeActive = false;
   const pointerDrag = new PointerDragBehavior({
     dragPlaneNormal: Vector3.Up(),
   });
@@ -60,7 +60,14 @@ const BabylonScene = () => {
 
     let bufferMeshes = [];
     let positions = [];
+    let positionsBuffer = [];
     let polygon = null;
+    let depth = 2;
+
+    const extrudeMat = new StandardMaterial("Extruded Mesh Material", scene);
+    extrudeMat.diffuseColor = Color3.Red();
+    extrudeMat.backFaceCulling = false;
+    extrudeMat.twoSidedLighting = true;
 
     scene.onPointerDown = (evt) => {
       // pick mesh at the pointer position
@@ -79,6 +86,9 @@ const BabylonScene = () => {
             Mesh.position = hit.pickedPoint;
             bufferMeshes.push(Mesh);
             positions.push(new Vector2(Mesh.position._x, Mesh.position._z));
+            positionsBuffer.push(
+              new Vector3(Mesh.position._x, 0, Mesh.position._z)
+            );
           } catch (error) {
             console.error(error);
           }
@@ -107,6 +117,31 @@ const BabylonScene = () => {
         if (moveActive) hit.pickedMesh.addBehavior(pointerDrag);
         else hit.pickedMesh.removeBehavior(pointerDrag);
       }
+      if (extrudeActive && hit.pickedMesh != ground && hit.faceId != -1) {
+        if (evt.button === 0) {
+          console.log(positionsBuffer);
+          const exPol = ExtrudePolygon(
+            "exPol",
+            {
+              shape: positionsBuffer,
+              depth: depth,
+              sideOrientation: 1,
+              wrap: true,
+            },
+            scene,
+            earcut
+          );
+          exPol.material = extrudeMat;
+          exPol.position.y = depth;
+          console.log("done");
+          try {
+            polygon.dispose();
+          } catch (error) {
+            console.error(error);
+          }
+          extrudeActive = false;
+        }
+      }
     };
 
     // Creating the GUI
@@ -132,12 +167,19 @@ const BabylonScene = () => {
       if (moveVertsActive) moveVertsActive = false;
       else moveVertsActive = true;
     });
-
     const move = CreateButton("Move", advancedTexture);
     move.top = "-45%";
+    move.left = "-11.125%";
     move.onPointerDownObservable.add(() => {
       if (moveActive) moveActive = false;
       else moveActive = true;
+    });
+    const extMesh = CreateButton("Extrude", advancedTexture);
+    extMesh.top = "-45%";
+    extMesh.left = "11.125%";
+    extMesh.onPointerDownObservable.add(() => {
+      if (extrudeActive) extrudeActive = false;
+      else extrudeActive = true;
     });
 
     // Rendering loop
