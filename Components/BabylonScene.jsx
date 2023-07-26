@@ -18,6 +18,7 @@ import {
 import * as earcut from "earcut";
 import { AdvancedDynamicTexture, Control, Button } from "@babylonjs/gui";
 import CreateButton from "./CreateButton";
+import verticesManipulator from "./MoveVertices";
 
 const BabylonScene = () => {
   const sceneRef = useRef(null);
