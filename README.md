@@ -2,6 +2,8 @@
 
 Welcome to the Babylon.js Interactive Scene! This project demonstrates an interactive 3D scene using the powerful Babylon.js framework combined with React and Next.js.
 
+The live version of the Project is deployed on vercel and can be found [here](https://uttejk-2d-extrusion.vercel.app/).
+
 ## Features
 
 - Draw Polygons: Use the "Draw" button to draw polygons on the ground. Left-click to place points, and right-click to complete the polygon.
