@@ -13,11 +13,11 @@ import {
   StandardMaterial,
   Vector2,
   Vector3,
+  VertexBuffer,
 } from "@babylonjs/core";
 import * as earcut from "earcut";
 import { AdvancedDynamicTexture, Control, Button } from "@babylonjs/gui";
 import CreateButton from "./CreateButton";
-import verticesManipulator from "./MoveVertices";
 
 const BabylonScene = () => {
   const sceneRef = useRef(null);
@@ -25,6 +25,7 @@ const BabylonScene = () => {
   let moveVertsActive = false;
   let moveActive = false;
   let extrudeActive = false;
+  let extruded = false;
   const pointerDrag = new PointerDragBehavior({
     dragPlaneNormal: Vector3.Up(),
   });
@@ -62,7 +63,9 @@ const BabylonScene = () => {
     let positions = [];
     let positionsBuffer = [];
     let polygon = null;
+    let mesh = null;
     let depth = 2;
+    let vertexcontrols = [];
 
     const extrudeMat = new StandardMaterial("Extruded Mesh Material", scene);
     extrudeMat.diffuseColor = Color3.Red();
@@ -75,8 +78,8 @@ const BabylonScene = () => {
       // the evt.button will be zero for left mouse button, and 2 for right mouse button
       // console.log(evt.button);
       // console.log(hit.pickedMesh?._geometry);
-      console.log();
       if (hit.faceId !== -1 && drawActive) {
+        extruded = false;
         if (evt.button === 0) {
           const Mesh = MeshBuilder.CreateSphere(
             "PlaceHolder",
@@ -115,32 +118,104 @@ const BabylonScene = () => {
         }
       }
       if (hit.faceId != -1 && hit.pickedMesh != ground) {
-        if (moveActive) hit.pickedMesh.addBehavior(pointerDrag);
+        if (moveActive && extruded === false) {
+          alert("You can only move the mesh after the extrusion");
+          moveActive = false;
+        }
+        if (moveActive && extruded === true)
+          hit.pickedMesh.addBehavior(pointerDrag);
         else hit.pickedMesh.removeBehavior(pointerDrag);
       }
       if (extrudeActive && hit.pickedMesh != ground && hit.faceId != -1) {
         if (evt.button === 0) {
-          console.log(positionsBuffer);
-          const exPol = ExtrudePolygon(
+          mesh = ExtrudePolygon(
             "exPol",
             {
               shape: positionsBuffer,
               depth: depth,
               sideOrientation: 1,
               wrap: true,
+              updatable: true,
             },
             scene,
             earcut
           );
-          exPol.material = extrudeMat;
-          exPol.position.y = depth;
-          console.log("done");
+          extruded = true;
+          mesh.material = extrudeMat;
+          mesh.position.y = depth;
           try {
             polygon.dispose();
           } catch (error) {
             console.error(error);
           }
           extrudeActive = false;
+        }
+      }
+      if (moveVertsActive && hit.pickedMesh != ground && hit.faceId != -1) {
+        if (evt.button === 0) {
+          if (!hit.pickedMesh.name.includes("vertexcontrol")) {
+            {
+              const transformation = mesh.getWorldMatrix();
+
+              let vertices = mesh
+                .getVerticesData(VertexBuffer.PositionKind)
+                .reduce((all, one, i) => {
+                  const ch = Math.floor(i / 3);
+                  all[ch] = [].concat(all[ch] ?? [], one);
+                  return all;
+                }, []);
+
+              const shared = new Map();
+              const unique = [];
+
+              vertices.forEach((vertex, index) => {
+                const key = vertex.join(" ");
+                if (shared.has(key)) {
+                  shared.set(key, [...shared.get(key), index]);
+                } else {
+                  shared.set(key, [index]);
+                  unique.push({
+                    vertex: Vector3.TransformCoordinates(
+                      Vector3.FromArray(vertex),
+                      transformation
+                    ).asArray(),
+                    key,
+                  });
+                }
+              });
+
+              unique.forEach(({ vertex, key }) => {
+                const indices = shared.get(key);
+
+                const behaviour = new PointerDragBehavior();
+                behaviour.dragDeltaRatio = 1;
+                behaviour.onDragObservable.add((info) => {
+                  indices.forEach((index) => {
+                    vertices[index] = Vector3.FromArray(vertices[index])
+                      .add(info.delta)
+                      .asArray();
+                  });
+                  mesh.updateVerticesData(
+                    VertexBuffer.PositionKind,
+                    vertices.flat()
+                  );
+                });
+
+                const draggable = MeshBuilder.CreateSphere(
+                  `vertexcontrol-${indices.join("_")}`,
+                  {
+                    diameter: 0.25,
+                    updatable: true,
+                  },
+                  scene
+                );
+                draggable.position = Vector3.FromArray(vertex);
+                draggable.addBehavior(behaviour);
+
+                vertexcontrols.push(draggable);
+              });
+            }
+          }
         }
       }
     };
@@ -165,8 +240,11 @@ const BabylonScene = () => {
     moveVerts.top = "-45%";
     moveVerts.left = "35%";
     moveVerts.onPointerDownObservable.add(() => {
-      if (moveVertsActive) moveVertsActive = false;
-      else moveVertsActive = true;
+      if (moveVertsActive) {
+        moveVertsActive = false;
+        vertexcontrols.forEach((control) => control.dispose());
+        vertexcontrols = [];
+      } else moveVertsActive = true;
     });
     const move = CreateButton("Move", advancedTexture);
     move.top = "-45%";
