@@ -74,7 +74,8 @@ const BabylonScene = () => {
       const hit = scene.pick(scene.pointerX, scene.pointerY);
       // the evt.button will be zero for left mouse button, and 2 for right mouse button
       // console.log(evt.button);
-
+      // console.log(hit.pickedMesh?._geometry);
+      console.log();
       if (hit.faceId !== -1 && drawActive) {
         if (evt.button === 0) {
           const Mesh = MeshBuilder.CreateSphere(
@@ -187,11 +188,9 @@ const BabylonScene = () => {
       scene.render();
     });
 
-    const handleResize = () => {
+    window.addEventListener("resize", () => {
       engine.resize();
-    };
-
-    window.addEventListener("resize", handleResize);
+    });
 
     // Clean up the scene when the component unmounts
     return () => {
